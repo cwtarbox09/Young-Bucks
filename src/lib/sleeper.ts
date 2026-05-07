@@ -84,10 +84,6 @@ export async function getPreviousUsers(leagueId: string): Promise<SleeperUser[]>
   return sleeperFetch<SleeperUser[]>(`/league/${leagueId}/users`, 3600);
 }
 
-const TEAM_NAME_OVERRIDES: Record<string, string> = {
-  cj602: 'cj602',
-};
-
 export function buildTeams(rosters: SleeperRoster[], users: SleeperUser[]): TeamData[] {
   const userMap = new Map(users.map((u) => [u.user_id, u]));
 
@@ -109,7 +105,11 @@ export function buildTeams(rosters: SleeperRoster[], users: SleeperUser[]): Team
         user?.metadata?.team_name_update ||
         displayName ||
         `Team ${roster.roster_id}`;
-      const teamName = TEAM_NAME_OVERRIDES[displayName] ?? rawTeamName;
+      // If the stored team name is nonsensical (e.g. "on"), fall back to the display name.
+      const teamName =
+        rawTeamName.toLowerCase() === displayName.toLowerCase() || rawTeamName.length > 2
+          ? rawTeamName
+          : displayName || `Team ${roster.roster_id}`;
 
       return {
         roster,
