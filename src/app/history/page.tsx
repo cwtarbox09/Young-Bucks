@@ -27,6 +27,17 @@ interface SeasonSummary {
   topScorer?: TeamData;
 }
 
+function resolveChampion(teams: TeamData[], status: string): TeamData | undefined {
+  // Sleeper sets rank to 0 in the off-season, so fall back to best W-L record
+  // for completed seasons when no team carries rank 1.
+  const byRank = teams.find((t) => t.rank === 1);
+  if (byRank) return byRank;
+  if (status === 'complete') {
+    return [...teams].sort((a, b) => b.wins - a.wins || a.losses - b.losses)[0];
+  }
+  return undefined;
+}
+
 async function buildSeasonHistory(): Promise<SeasonSummary[]> {
   const seasons: SeasonSummary[] = [];
 
@@ -38,7 +49,7 @@ async function buildSeasonHistory(): Promise<SeasonSummary[]> {
   seasons.push({
     league: currentLeague,
     teams: currentTeams,
-    champion: currentTeams.find((t) => t.rank === 1),
+    champion: resolveChampion(currentTeams, currentLeague.status),
     topScorer: [...currentTeams].sort((a, b) => b.pointsFor - a.pointsFor)[0],
   });
 
@@ -56,7 +67,7 @@ async function buildSeasonHistory(): Promise<SeasonSummary[]> {
       seasons.push({
         league: prevLeague,
         teams: prevTeams,
-        champion: prevTeams.find((t) => t.rank === 1),
+        champion: resolveChampion(prevTeams, prevLeague.status),
         runnerUp: prevTeams.find((t) => t.rank === 2),
         topScorer: [...prevTeams].sort((a, b) => b.pointsFor - a.pointsFor)[0],
       });
@@ -103,7 +114,7 @@ export default async function HistoryPage() {
 
     const champLeader = Object.entries(mostChampionships).sort(([, a], [, b]) => b - a)[0];
 
-    const completedSeasons = seasons.filter((s) => s.league.status === 'complete' && s.champion);
+    const completedSeasons = seasons.filter((s) => s.league.status === 'complete');
 
     return (
       <div className="page-container space-y-8">
