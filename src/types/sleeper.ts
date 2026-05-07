@@ -152,6 +152,7 @@ export interface EnrichedPlayer extends SleeperPlayer {
   fantasyTeamName?: string;
   isProtected: boolean;
   draftClass: number;
+  projectedPts?: number;
 }
 
 export const POSITIONS = ['QB', 'RB', 'WR', 'TE'] as const;
