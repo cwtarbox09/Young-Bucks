@@ -99,14 +99,22 @@ export function buildTeams(rosters: SleeperRoster[], users: SleeperUser[]): Team
         (roster.settings?.fpts_against ?? 0) +
         (roster.settings?.fpts_against_decimal ?? 0) / 100;
 
+      const displayName = user?.display_name ?? '';
+      const rawTeamName =
+        user?.metadata?.team_name ||
+        user?.metadata?.team_name_update ||
+        displayName ||
+        `Team ${roster.roster_id}`;
+      // If the stored team name is nonsensical (e.g. "on"), fall back to the display name.
+      const teamName =
+        rawTeamName.toLowerCase() === displayName.toLowerCase() || rawTeamName.length > 2
+          ? rawTeamName
+          : displayName || `Team ${roster.roster_id}`;
+
       return {
         roster,
         user: user!,
-        teamName:
-          user?.metadata?.team_name ||
-          user?.metadata?.team_name_update ||
-          user?.display_name ||
-          `Team ${roster.roster_id}`,
+        teamName,
         ownerName: user?.display_name ?? 'Unknown',
         wins,
         losses,
