@@ -8,8 +8,8 @@ import {
   getDraftClassColor,
   formatPoints,
 } from '@/lib/sleeper';
-import { BarChart3, Users, Star, Shield, Zap } from 'lucide-react';
-import type { EnrichedPlayer, TeamData } from '@/types/sleeper';
+import { BarChart3, Users, Star, Shield } from 'lucide-react';
+import type { EnrichedPlayer } from '@/types/sleeper';
 
 export const revalidate = 300;
 
@@ -26,19 +26,6 @@ export default async function StatsPage() {
     ]);
     const teams = buildTeams(rosters, users);
     const allPlayers = enrichPlayers(playersMap, rosters, teams);
-
-    // Draft class breakdown
-    const byClass = [2024, 2025, 2026].map((yr) => {
-      const cls = allPlayers.filter((p) => p.draftClass === yr);
-      const rostered = cls.filter((p) => p.isProtected);
-      const free = cls.filter((p) => !p.isProtected);
-      const byPos = ['QB', 'RB', 'WR', 'TE'].map((pos) => ({
-        pos,
-        total: cls.filter((p) => p.position === pos).length,
-        rostered: cls.filter((p) => p.position === pos && p.isProtected).length,
-      }));
-      return { year: yr, total: cls.length, rostered: rostered.length, free: free.length, byPos };
-    });
 
     // Top ranked players per position (all eligible)
     const topByPos = ['QB', 'RB', 'WR', 'TE'].map((pos) => ({
@@ -63,13 +50,6 @@ export default async function StatsPage() {
       return { team: t, roster, avgRank, classDist, youngest };
     });
 
-    // Position distribution across league
-    const positionDistribution = ['QB', 'RB', 'WR', 'TE'].map((pos) => {
-      const total = allPlayers.filter((p) => p.position === pos).length;
-      const rostered = allPlayers.filter((p) => p.position === pos && p.isProtected).length;
-      return { pos, total, rostered, free: total - rostered };
-    });
-
     // Most stacked teams (most top-100 search_rank players)
     const stackedTeams = teamAnalytics
       .map((ta) => ({
@@ -88,80 +68,9 @@ export default async function StatsPage() {
             <h1 className="section-heading">League Stats</h1>
           </div>
           <p className="text-zinc-500 text-sm">
-            Draft class breakdowns, position leaderboards, and roster analytics
+            Position leaderboards and roster analytics
           </p>
         </div>
-
-        {/* Draft Class Overview */}
-        <section>
-          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <Star size={16} className="text-amber-400" /> Draft Class Breakdown
-          </h2>
-          <div className="grid sm:grid-cols-3 gap-4 mb-6">
-            {byClass.filter((c) => c.total > 0).map((c) => (
-              <DraftClassCard key={c.year} data={c} />
-            ))}
-          </div>
-
-          {/* Position × Class matrix */}
-          <div className="card overflow-hidden">
-            <div className="px-5 py-3 border-b border-zinc-800 flex items-center gap-2">
-              <Shield size={14} className="text-zinc-400" />
-              <span className="text-sm font-semibold text-white">
-                Position × Class Distribution
-              </span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-zinc-800 text-zinc-500 text-xs uppercase tracking-wider">
-                    <th className="text-left px-5 py-3 font-medium">Class</th>
-                    {['QB', 'RB', 'WR', 'TE'].map((pos) => (
-                      <th key={pos} className="text-center px-4 py-3 font-medium">{pos}</th>
-                    ))}
-                    <th className="text-right px-5 py-3 font-medium">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-800/50">
-                  {byClass.filter((c) => c.total > 0).map((c) => (
-                    <tr key={c.year} className="table-row-hover">
-                      <td className="px-5 py-3">
-                        <span className={`class-badge ${getDraftClassColor(c.year)}`}>
-                          {c.year}
-                        </span>
-                      </td>
-                      {c.byPos.map((bp) => (
-                        <td key={bp.pos} className="px-4 py-3 text-center">
-                          <div className="flex flex-col items-center gap-0.5">
-                            <span className="text-white font-semibold">{bp.total}</span>
-                            {bp.rostered > 0 && (
-                              <span className="text-zinc-600 text-xs">
-                                {bp.rostered} prot.
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                      ))}
-                      <td className="px-5 py-3 text-right font-bold text-white">{c.total}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
-        {/* Position Distribution */}
-        <section>
-          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <Zap size={16} className="text-green-400" /> Position Distribution
-          </h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {positionDistribution.map((pd) => (
-              <PositionDistCard key={pd.pos} data={pd} />
-            ))}
-          </div>
-        </section>
 
         {/* Top Players Per Position */}
         <section>
@@ -271,107 +180,6 @@ export default async function StatsPage() {
   }
 }
 
-function DraftClassCard({
-  data,
-}: {
-  data: { year: number; total: number; rostered: number; free: number };
-}) {
-  const pct = data.total > 0 ? (data.rostered / data.total) * 100 : 0;
-  const colorMap: Record<number, { bg: string; border: string; text: string; bar: string }> = {
-    2024: {
-      bg: 'bg-amber-500/10',
-      border: 'border-amber-500/20',
-      text: 'text-amber-400',
-      bar: 'bg-amber-500',
-    },
-    2025: {
-      bg: 'bg-purple-500/10',
-      border: 'border-purple-500/20',
-      text: 'text-purple-400',
-      bar: 'bg-purple-500',
-    },
-    2026: {
-      bg: 'bg-cyan-500/10',
-      border: 'border-cyan-500/20',
-      text: 'text-cyan-400',
-      bar: 'bg-cyan-500',
-    },
-  };
-  const c = colorMap[data.year] ?? colorMap[2026];
-
-  return (
-    <div className={`card p-5 border ${c.border}`}>
-      <div className="flex items-center justify-between mb-4">
-        <span className={`text-2xl font-black ${c.text}`}>{data.year}</span>
-        <span className="text-zinc-500 text-sm font-medium">Draft Class</span>
-      </div>
-      <div className="space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-zinc-500">Total Players</span>
-          <span className="text-white font-bold">{data.total}</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-zinc-500">Protected</span>
-          <span className={`font-bold ${c.text}`}>{data.rostered}</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-zinc-500">Free Agents</span>
-          <span className="text-green-400 font-bold">{data.free}</span>
-        </div>
-      </div>
-      <div className="mt-4">
-        <div className="flex justify-between text-xs text-zinc-600 mb-1.5">
-          <span>Protected rate</span>
-          <span>{pct.toFixed(0)}%</span>
-        </div>
-        <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full ${c.bar}`}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PositionDistCard({
-  data,
-}: {
-  data: { pos: string; total: number; rostered: number; free: number };
-}) {
-  const pct = data.total > 0 ? (data.rostered / data.total) * 100 : 0;
-
-  return (
-    <div className="card p-5">
-      <div className="flex items-center gap-2 mb-4">
-        <span className={`pos-badge ${getPositionColor(data.pos)}`}>{data.pos}</span>
-        <span className="text-zinc-500 text-sm">Position</span>
-      </div>
-      <div className="grid grid-cols-3 gap-2 text-center mb-4">
-        <div>
-          <p className="text-2xl font-black text-white">{data.total}</p>
-          <p className="text-zinc-600 text-xs">Total</p>
-        </div>
-        <div>
-          <p className="text-2xl font-black text-amber-400">{data.rostered}</p>
-          <p className="text-zinc-600 text-xs">Protected</p>
-        </div>
-        <div>
-          <p className="text-2xl font-black text-green-400">{data.free}</p>
-          <p className="text-zinc-600 text-xs">Available</p>
-        </div>
-      </div>
-      <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-        <div
-          className="h-full rounded-full bg-amber-500"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
 function PositionLeaderboard({
   pos,
   players,
@@ -394,7 +202,7 @@ function PositionLeaderboard({
             <span className="text-zinc-600 text-sm font-bold w-4 tabular-nums">{i + 1}</span>
             <div className="flex-1 min-w-0">
               <p className="text-white text-sm font-semibold truncate">{p.full_name}</p>
-              <p className="text-zinc-600 text-xs">{p.team ?? 'FA'}</p>
+              <p className="text-zinc-600 text-xs">{p.fantasyTeamName ?? 'Free Agent'}</p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <span className={`class-badge ${getDraftClassColor(p.draftClass)}`}>
