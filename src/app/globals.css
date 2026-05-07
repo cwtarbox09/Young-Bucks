@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --nav-height: 64px;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: #09090b;
+    color: #fafafa;
+    font-family: var(--font-inter), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #18181b;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #3f3f46;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #52525b;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-zinc-900 border border-zinc-800 rounded-xl;
+  }
+
+  .card-hover {
+    @apply card transition-all duration-200 hover:border-zinc-700 hover:bg-zinc-800/80;
+  }
+
+  .section-heading {
+    @apply text-2xl font-bold text-white tracking-tight;
+  }
+
+  .pos-badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border uppercase tracking-wide;
+  }
+
+  .class-badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border;
+  }
+
+  .stat-card {
+    @apply card p-5 flex flex-col gap-1;
+  }
+
+  .table-row-hover {
+    @apply hover:bg-zinc-800/50 transition-colors;
+  }
+
+  .page-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8;
+  }
+
+  .pill-btn {
+    @apply px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-150 border;
+  }
+
+  .pill-btn-active {
+    @apply pill-btn bg-green-600 border-green-500 text-white;
+  }
+
+  .pill-btn-inactive {
+    @apply pill-btn bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200;
+  }
+}
+
+.gradient-hero {
+  background: linear-gradient(
+    135deg,
+    #052e16 0%,
+    #14532d 25%,
+    #09090b 60%,
+    #09090b 100%
+  );
+}
+
+.gradient-gold {
+  background: linear-gradient(135deg, #78350f 0%, #451a03 100%);
+}
+
+.text-gradient-green {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-gold {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
