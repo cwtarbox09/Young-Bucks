@@ -21,23 +21,42 @@ import {
   getPositionColor,
   getDraftClassColor,
   formatPoints,
+  getSeasonProjections,
+  getSeasonStats,
 } from '@/lib/sleeper';
 import type { TeamData, EnrichedPlayer } from '@/types/sleeper';
 
 export const revalidate = 300;
 
 async function fetchHomeData() {
-  const [league, users, rosters, playersMap] = await Promise.all([
+  const [league, users, rosters, playersMap, projections, prevStats] = await Promise.all([
     getLeague(),
     getUsers(),
     getRosters(),
     getAllPlayers(),
+    getSeasonProjections(2026),
+    getSeasonStats(2025),
   ]);
   const teams = buildTeams(rosters, users);
   const allPlayers = enrichPlayers(playersMap, rosters, teams);
+
+  const projMap = new Map<string, number>();
+  for (const [pid, d] of Object.entries(prevStats)) {
+    if (d.pts_ppr != null) projMap.set(pid, d.pts_ppr);
+  }
+  for (const [pid, d] of Object.entries(projections)) {
+    if (d.pts_ppr != null) projMap.set(pid, d.pts_ppr);
+  }
+
   const freeAgents = allPlayers
-    .filter((p) => !p.isProtected && p.search_rank != null)
-    .sort((a, b) => (a.search_rank ?? 999999) - (b.search_rank ?? 999999))
+    .filter((p) => !p.isProtected && (p.search_rank != null || projMap.has(p.player_id)))
+    .map((p) => ({ ...p, projectedPts: projMap.get(p.player_id) }))
+    .sort((a, b) => {
+      if (a.projectedPts != null && b.projectedPts != null) return b.projectedPts - a.projectedPts;
+      if (a.projectedPts != null) return -1;
+      if (b.projectedPts != null) return 1;
+      return (a.search_rank ?? 999999) - (b.search_rank ?? 999999);
+    })
     .slice(0, 6);
   return { league, teams, freeAgents, allPlayers };
 }
@@ -280,9 +299,7 @@ function TopFreeAgents({ players }: { players: EnrichedPlayer[] }) {
               </span>
               <div className="flex-1 min-w-0">
                 <p className="text-white font-semibold text-sm truncate">{p.full_name}</p>
-                <p className="text-zinc-500 text-xs truncate">
-                  {p.team ?? 'FA'} · {p.college ?? '—'}
-                </p>
+                <p className="text-zinc-500 text-xs truncate">{p.team ?? 'FA'}</p>
               </div>
               <span className={`class-badge ${getDraftClassColor(p.draftClass)}`}>
                 &apos;{String(p.draftClass).slice(2)}

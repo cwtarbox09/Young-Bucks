@@ -44,6 +44,34 @@ export async function getAllPlayers(): Promise<Record<string, SleeperPlayer>> {
   return sleeperFetch<Record<string, SleeperPlayer>>('/players/nfl', 86400);
 }
 
+export async function getSeasonProjections(
+  year: number
+): Promise<Record<string, { pts_ppr?: number }>> {
+  try {
+    const data = await sleeperFetch<Record<string, { pts_ppr?: number }> | null>(
+      `/projections/nfl/regular/${year}`,
+      3600
+    );
+    return data ?? {};
+  } catch {
+    return {};
+  }
+}
+
+export async function getSeasonStats(
+  year: number
+): Promise<Record<string, { pts_ppr?: number }>> {
+  try {
+    const data = await sleeperFetch<Record<string, { pts_ppr?: number }> | null>(
+      `/stats/nfl/regular/${year}`,
+      3600
+    );
+    return data ?? {};
+  } catch {
+    return {};
+  }
+}
+
 export async function getPreviousLeague(leagueId: string): Promise<SleeperLeague> {
   return sleeperFetch<SleeperLeague>(`/league/${leagueId}`, 3600);
 }

@@ -21,8 +21,7 @@ export default function FreeAgentsList({ players }: { players: EnrichedPlayer[] 
         const q = search.toLowerCase();
         if (
           !p.full_name?.toLowerCase().includes(q) &&
-          !p.team?.toLowerCase().includes(q) &&
-          !p.college?.toLowerCase().includes(q)
+          !p.team?.toLowerCase().includes(q)
         )
           return false;
       }
@@ -39,7 +38,7 @@ export default function FreeAgentsList({ players }: { players: EnrichedPlayer[] 
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
           <input
             type="text"
-            placeholder="Search player, team, college…"
+            placeholder="Search player or team…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full bg-zinc-800 border border-zinc-700 rounded-lg pl-8 pr-8 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-green-600 transition-colors"
@@ -105,7 +104,7 @@ export default function FreeAgentsList({ players }: { players: EnrichedPlayer[] 
                   <th className="text-center px-3 py-3 font-medium hidden md:table-cell">Age</th>
                   <th className="text-center px-3 py-3 font-medium hidden lg:table-cell">Exp</th>
                   <th className="text-right px-4 py-3 font-medium hidden sm:table-cell">
-                    FA Rank
+                    Proj Pts
                   </th>
                   <th className="text-right px-4 py-3 font-medium">Status</th>
                 </tr>
@@ -141,10 +140,7 @@ function PlayerRow({ player: p, rank }: { player: EnrichedPlayer; rank: number }
       <td className="px-3 py-3">
         <div className="flex flex-col">
           <span className="text-white font-semibold">{p.full_name}</span>
-          <span className="text-zinc-500 text-xs">
-            {p.team ?? 'FA'}
-            {p.college ? ` · ${p.college}` : ''}
-          </span>
+          <span className="text-zinc-500 text-xs">{p.team ?? 'FA'}</span>
         </div>
       </td>
       <td className="px-3 py-3 text-center hidden sm:table-cell">
@@ -159,8 +155,12 @@ function PlayerRow({ player: p, rank }: { player: EnrichedPlayer; rank: number }
         {p.years_exp === 0 ? 'Rookie' : `Yr ${p.years_exp + 1}`}
       </td>
       <td className="px-4 py-3 text-right hidden sm:table-cell">
-        {p.search_rank != null ? (
+        {p.projectedPts != null ? (
           <span className="text-zinc-300 font-mono text-xs bg-zinc-800 px-2 py-0.5 rounded">
+            {p.projectedPts.toFixed(1)}
+          </span>
+        ) : p.search_rank != null ? (
+          <span className="text-zinc-500 font-mono text-xs bg-zinc-800/50 px-2 py-0.5 rounded">
             #{p.search_rank}
           </span>
         ) : (

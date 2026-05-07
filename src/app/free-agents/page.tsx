@@ -1,4 +1,12 @@
-import { getRosters, getUsers, getAllPlayers, buildTeams, enrichPlayers } from '@/lib/sleeper';
+import {
+  getRosters,
+  getUsers,
+  getAllPlayers,
+  buildTeams,
+  enrichPlayers,
+  getSeasonProjections,
+  getSeasonStats,
+} from '@/lib/sleeper';
 import FreeAgentsList from '@/components/FreeAgentsList';
 import type { EnrichedPlayer } from '@/types/sleeper';
 import { Star, Shield, Info } from 'lucide-react';
@@ -11,17 +19,36 @@ export const metadata = {
 
 export default async function FreeAgentsPage() {
   try {
-    const [users, rosters, playersMap] = await Promise.all([
+    const [users, rosters, playersMap, projections, prevStats] = await Promise.all([
       getUsers(),
       getRosters(),
       getAllPlayers(),
+      getSeasonProjections(2026),
+      getSeasonStats(2025),
     ]);
     const teams = buildTeams(rosters, users);
     const allPlayers = enrichPlayers(playersMap, rosters, teams);
 
+    // Build projected-pts map: 2025 stats as baseline, 2026 projections override when available
+    const projMap = new Map<string, number>();
+    for (const [pid, d] of Object.entries(prevStats)) {
+      if (d.pts_ppr != null) projMap.set(pid, d.pts_ppr);
+    }
+    for (const [pid, d] of Object.entries(projections)) {
+      if (d.pts_ppr != null) projMap.set(pid, d.pts_ppr);
+    }
+
     const freeAgents: EnrichedPlayer[] = allPlayers
       .filter((p) => !p.isProtected)
-      .sort((a, b) => (a.search_rank ?? 999999) - (b.search_rank ?? 999999));
+      .map((p) => ({ ...p, projectedPts: projMap.get(p.player_id) }))
+      .sort((a, b) => {
+        if (a.projectedPts != null && b.projectedPts != null) return b.projectedPts - a.projectedPts;
+        if (a.projectedPts != null) return -1;
+        if (b.projectedPts != null) return 1;
+        return (a.search_rank ?? 999999) - (b.search_rank ?? 999999);
+      });
+
+    const hasProjections = freeAgents.some((p) => p.projectedPts != null);
 
     const draftClassCounts = freeAgents.reduce<Record<number, number>>((acc, p) => {
       acc[p.draftClass] = (acc[p.draftClass] ?? 0) + 1;
@@ -37,7 +64,8 @@ export default async function FreeAgentsPage() {
               <h1 className="section-heading">Best Available</h1>
             </div>
             <p className="text-zinc-500 text-sm">
-              Unprotected players from the 2024+ draft class, ranked by fantasy value
+              Unprotected players from the 2024+ draft class, ranked by{' '}
+              {hasProjections ? 'Sleeper projections' : 'fantasy value'}
             </p>
           </div>
           <div className="flex items-center gap-2 text-xs">
@@ -57,7 +85,20 @@ export default async function FreeAgentsPage() {
         <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-500/5 border border-blue-500/15 text-blue-300 text-xs">
           <Info size={13} className="mt-0.5 flex-shrink-0" />
           <span>
-            Players ranked by Sleeper&apos;s fantasy value score. Lower rank = higher value.
+            {hasProjections ? (
+              <>
+                Players ranked by{' '}
+                <strong className="text-blue-200">Sleeper projected PPR points</strong>. Higher
+                projected points = higher rank. Rookies without projections are ranked by Sleeper
+                fantasy value.
+              </>
+            ) : (
+              <>
+                Players ranked by{' '}
+                <strong className="text-blue-200">Sleeper&apos;s fantasy value score</strong>.
+                Lower rank = higher value.
+              </>
+            )}{' '}
             Only players with <strong className="text-blue-200">years_exp ≤ 2</strong> (2024–2026
             draft classes) are shown.
           </span>
