@@ -53,12 +53,11 @@ async function buildSeasonHistory(): Promise<SeasonSummary[]> {
         getPreviousRosters(prevId),
       ]);
       const prevTeams = buildTeams(prevRosters, prevUsers);
-      const sorted = [...prevTeams].sort((a, b) => a.rank - b.rank);
       seasons.push({
         league: prevLeague,
         teams: prevTeams,
-        champion: sorted[0],
-        runnerUp: sorted[1],
+        champion: prevTeams.find((t) => t.rank === 1),
+        runnerUp: prevTeams.find((t) => t.rank === 2),
         topScorer: [...prevTeams].sort((a, b) => b.pointsFor - a.pointsFor)[0],
       });
       currentLeague = prevLeague;
