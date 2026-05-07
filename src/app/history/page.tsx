@@ -7,6 +7,8 @@ import {
   getPreviousLeague,
   getPreviousRosters,
   getPreviousUsers,
+  getWinnersBracket,
+  findChampionRosterId,
   getScoringLabel,
   formatPoints,
 } from '@/lib/sleeper';
@@ -27,15 +29,12 @@ interface SeasonSummary {
   topScorer?: TeamData;
 }
 
-function resolveChampion(teams: TeamData[], status: string): TeamData | undefined {
-  // Sleeper sets rank to 0 in the off-season, so fall back to best W-L record
-  // for completed seasons when no team carries rank 1.
-  const byRank = teams.find((t) => t.rank === 1);
-  if (byRank) return byRank;
-  if (status === 'complete') {
-    return [...teams].sort((a, b) => b.wins - a.wins || a.losses - b.losses)[0];
+function pickChampion(teams: TeamData[], championRosterId: number | null): TeamData | undefined {
+  if (championRosterId != null) {
+    const byBracket = teams.find((t) => t.roster.roster_id === championRosterId);
+    if (byBracket) return byBracket;
   }
-  return undefined;
+  return teams.find((t) => t.rank === 1);
 }
 
 async function buildSeasonHistory(): Promise<SeasonSummary[]> {
@@ -46,10 +45,19 @@ async function buildSeasonHistory(): Promise<SeasonSummary[]> {
   let currentRosters = await getRosters();
 
   const currentTeams = buildTeams(currentRosters, currentUsers);
+
+  let currentChampionRosterId: number | null = null;
+  if (currentLeague.status === 'complete') {
+    try {
+      const bracket = await getWinnersBracket(currentLeague.league_id);
+      currentChampionRosterId = findChampionRosterId(bracket);
+    } catch { /* bracket unavailable */ }
+  }
+
   seasons.push({
     league: currentLeague,
     teams: currentTeams,
-    champion: resolveChampion(currentTeams, currentLeague.status),
+    champion: pickChampion(currentTeams, currentChampionRosterId),
     topScorer: [...currentTeams].sort((a, b) => b.pointsFor - a.pointsFor)[0],
   });
 
@@ -64,10 +72,19 @@ async function buildSeasonHistory(): Promise<SeasonSummary[]> {
         getPreviousRosters(prevId),
       ]);
       const prevTeams = buildTeams(prevRosters, prevUsers);
+
+      let prevChampionRosterId: number | null = null;
+      if (prevLeague.status === 'complete') {
+        try {
+          const bracket = await getWinnersBracket(prevId);
+          prevChampionRosterId = findChampionRosterId(bracket);
+        } catch { /* bracket unavailable */ }
+      }
+
       seasons.push({
         league: prevLeague,
         teams: prevTeams,
-        champion: resolveChampion(prevTeams, prevLeague.status),
+        champion: pickChampion(prevTeams, prevChampionRosterId),
         runnerUp: prevTeams.find((t) => t.rank === 2),
         topScorer: [...prevTeams].sort((a, b) => b.pointsFor - a.pointsFor)[0],
       });

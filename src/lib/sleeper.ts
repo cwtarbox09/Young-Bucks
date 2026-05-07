@@ -84,6 +84,27 @@ export async function getPreviousUsers(leagueId: string): Promise<SleeperUser[]>
   return sleeperFetch<SleeperUser[]>(`/league/${leagueId}/users`, 3600);
 }
 
+export interface SleeperBracketMatchup {
+  r: number;   // round
+  m: number;   // matchup id within round
+  t1: number | null;
+  t2: number | null;
+  w: number | null;  // roster_id of winner
+  l: number | null;  // roster_id of loser
+  p: number;   // final placement awarded to winner (1 = champion)
+}
+
+export async function getWinnersBracket(leagueId: string): Promise<SleeperBracketMatchup[]> {
+  return sleeperFetch<SleeperBracketMatchup[]>(`/league/${leagueId}/winners_bracket`, 3600);
+}
+
+// Returns the roster_id of the champion from a completed league's winners bracket.
+// The championship game is the matchup whose winner receives placement 1.
+export function findChampionRosterId(bracket: SleeperBracketMatchup[]): number | null {
+  const final = bracket.find((m) => m.p === 1);
+  return final?.w ?? null;
+}
+
 export function buildTeams(rosters: SleeperRoster[], users: SleeperUser[]): TeamData[] {
   const userMap = new Map(users.map((u) => [u.user_id, u]));
 
