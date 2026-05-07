@@ -103,6 +103,8 @@ export default async function HistoryPage() {
 
     const champLeader = Object.entries(mostChampionships).sort(([, a], [, b]) => b - a)[0];
 
+    const completedSeasons = seasons.filter((s) => s.league.status === 'complete' && s.champion);
+
     return (
       <div className="page-container space-y-8">
         {/* Header */}
@@ -156,6 +158,24 @@ export default async function HistoryPage() {
               />
             )}
           </div>
+        </section>
+
+        {/* Past Winners */}
+        <section>
+          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <Trophy size={16} className="text-amber-400" /> Past Winners
+          </h2>
+          {completedSeasons.length > 0 ? (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {completedSeasons.map((s) => (
+                <PastWinnerCard key={s.league.league_id} summary={s} />
+              ))}
+            </div>
+          ) : (
+            <div className="card p-6 text-center text-zinc-500 text-sm">
+              No completed seasons yet.
+            </div>
+          )}
         </section>
 
         {/* Season by season */}
@@ -313,6 +333,42 @@ function RecordCard({
         <p className="text-white text-2xl font-black">{value}</p>
         <p className="text-zinc-400 text-sm">{subLabel}</p>
       </div>
+    </div>
+  );
+}
+
+function PastWinnerCard({ summary: s }: { summary: SeasonSummary }) {
+  const isTopScorer = s.champion && s.topScorer && s.topScorer.ownerName === s.champion.ownerName;
+  return (
+    <div className="card p-5 relative overflow-hidden">
+      <div className="absolute -bottom-2 -right-2 opacity-[0.06]">
+        <Trophy size={90} className="text-amber-400" />
+      </div>
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-3xl font-black text-white">{s.league.season}</span>
+        <span className="text-xs font-semibold px-2.5 py-1 rounded-full border text-amber-400 bg-amber-500/10 border-amber-500/20">
+          Champion
+        </span>
+      </div>
+      {s.champion && (
+        <div>
+          <p className="text-white font-bold text-lg leading-tight">{s.champion.teamName}</p>
+          <p className="text-zinc-400 text-sm mb-3">{s.champion.ownerName}</p>
+          <div className="flex items-center gap-3">
+            <span className="text-green-400 text-sm font-semibold">
+              {s.champion.wins}-{s.champion.losses}
+            </span>
+            <span className="text-zinc-700 text-xs">
+              {formatPoints(s.champion.pointsFor)} pts scored
+            </span>
+          </div>
+          {isTopScorer && (
+            <span className="mt-3 inline-flex items-center gap-1 text-xs text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full">
+              <Zap size={10} /> Also Top Scorer
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
