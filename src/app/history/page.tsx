@@ -8,7 +8,9 @@ import {
   getPreviousRosters,
   getPreviousUsers,
   getWinnersBracket,
+  getLosersBracket,
   findChampionRosterId,
+  buildPlacementMap,
   getScoringLabel,
   formatPoints,
 } from '@/lib/sleeper';
@@ -27,6 +29,7 @@ interface SeasonSummary {
   champion?: TeamData;
   runnerUp?: TeamData;
   topScorer?: TeamData;
+  finalPlacements: Map<number, number>; // rosterId → final placement (1 = champion)
 }
 
 function pickChampion(teams: TeamData[], championRosterId: number | null): TeamData | undefined {
@@ -35,6 +38,18 @@ function pickChampion(teams: TeamData[], championRosterId: number | null): TeamD
     if (byBracket) return byBracket;
   }
   return teams.find((t) => t.rank === 1);
+}
+
+async function fetchBrackets(leagueId: string): Promise<Map<number, number>> {
+  try {
+    const [winners, losers] = await Promise.all([
+      getWinnersBracket(leagueId),
+      getLosersBracket(leagueId).catch(() => []),
+    ]);
+    return buildPlacementMap(winners, losers);
+  } catch {
+    return new Map();
+  }
 }
 
 async function buildSeasonHistory(): Promise<SeasonSummary[]> {
@@ -46,19 +61,18 @@ async function buildSeasonHistory(): Promise<SeasonSummary[]> {
 
   const currentTeams = buildTeams(currentRosters, currentUsers);
 
-  let currentChampionRosterId: number | null = null;
+  let currentPlacements = new Map<number, number>();
   if (currentLeague.status === 'complete') {
-    try {
-      const bracket = await getWinnersBracket(currentLeague.league_id);
-      currentChampionRosterId = findChampionRosterId(bracket);
-    } catch { /* bracket unavailable */ }
+    currentPlacements = await fetchBrackets(currentLeague.league_id);
   }
 
+  const currentChampRosterId = [...currentPlacements.entries()].find(([, p]) => p === 1)?.[0] ?? null;
   seasons.push({
     league: currentLeague,
     teams: currentTeams,
-    champion: pickChampion(currentTeams, currentChampionRosterId),
+    champion: pickChampion(currentTeams, currentChampRosterId),
     topScorer: [...currentTeams].sort((a, b) => b.pointsFor - a.pointsFor)[0],
+    finalPlacements: currentPlacements,
   });
 
   // Follow the chain of previous leagues (up to 5 seasons back)
@@ -73,20 +87,21 @@ async function buildSeasonHistory(): Promise<SeasonSummary[]> {
       ]);
       const prevTeams = buildTeams(prevRosters, prevUsers);
 
-      let prevChampionRosterId: number | null = null;
+      let prevPlacements = new Map<number, number>();
       if (prevLeague.status === 'complete') {
-        try {
-          const bracket = await getWinnersBracket(prevId);
-          prevChampionRosterId = findChampionRosterId(bracket);
-        } catch { /* bracket unavailable */ }
+        prevPlacements = await fetchBrackets(prevId);
       }
+
+      const champRosterId = [...prevPlacements.entries()].find(([, p]) => p === 1)?.[0] ?? null;
+      const runnerUpRosterId = [...prevPlacements.entries()].find(([, p]) => p === 2)?.[0] ?? null;
 
       seasons.push({
         league: prevLeague,
         teams: prevTeams,
-        champion: pickChampion(prevTeams, prevChampionRosterId),
-        runnerUp: prevTeams.find((t) => t.rank === 2),
+        champion: pickChampion(prevTeams, champRosterId),
+        runnerUp: runnerUpRosterId != null ? prevTeams.find((t) => t.roster.roster_id === runnerUpRosterId) : undefined,
         topScorer: [...prevTeams].sort((a, b) => b.pointsFor - a.pointsFor)[0],
+        finalPlacements: prevPlacements,
       });
       currentLeague = prevLeague;
       currentUsers = prevUsers;
@@ -462,17 +477,31 @@ function SeasonCard({ summary: s }: { summary: SeasonSummary }) {
         )}
 
         <div>
-          <p className="text-xs font-semibold text-zinc-500 mb-1">Final Standings</p>
+          <p className="text-xs font-semibold text-zinc-500 mb-1">
+            {isComplete ? 'Final Standings' : 'Current Standings'}
+          </p>
           <div className="space-y-1">
-            {s.teams.slice(0, 4).map((t, i) => (
-              <div key={t.roster.roster_id} className="flex items-center gap-2 text-xs">
-                <span className="text-zinc-600 w-3 tabular-nums">{i + 1}.</span>
-                <span className="text-zinc-400 truncate">{t.teamName}</span>
-                <span className="text-zinc-600 ml-auto tabular-nums">
-                  {t.wins}-{t.losses}
-                </span>
-              </div>
-            ))}
+            {(isComplete && s.finalPlacements.size > 0
+              ? [...s.teams].sort((a, b) => {
+                  const pa = s.finalPlacements.get(a.roster.roster_id) ?? 999;
+                  const pb = s.finalPlacements.get(b.roster.roster_id) ?? 999;
+                  return pa !== pb ? pa - pb : b.wins - a.wins;
+                })
+              : s.teams
+            ).slice(0, 4).map((t, i) => {
+              const placement = s.finalPlacements.get(t.roster.roster_id);
+              return (
+                <div key={t.roster.roster_id} className="flex items-center gap-2 text-xs">
+                  <span className="text-zinc-600 w-3 tabular-nums">
+                    {isComplete && placement != null ? placement : i + 1}.
+                  </span>
+                  <span className="text-zinc-400 truncate">{t.teamName}</span>
+                  <span className="text-zinc-600 ml-auto tabular-nums">
+                    {t.wins}-{t.losses}
+                  </span>
+                </div>
+              );
+            })}
             {s.teams.length > 4 && (
               <p className="text-zinc-700 text-xs">+{s.teams.length - 4} more</p>
             )}
